@@ -34,7 +34,7 @@ class Logger(object):
     def level_string(self, level):
         return self.level_strings[level]
     def message(self, level, message, **kwargs):
-        if self.level < self.OFF:
+        if level >= self.level:
             self.presenter.show(
                 "log",
                 {
