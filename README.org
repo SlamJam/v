@@ -1,0 +1,99 @@
+* v
+
+This is a toolchain version manager which goals are:
+
+- to be mobile 1 script solution
+- to manage all toolchains in uniform style
+- to be container friendly
+
+** Toolchain
+   Almost every toolchain nowadays have:
+   - Repository it could be built from
+   - Files to run
+   - Environment variables to set
+
+   Each toolchain could be:
+   - Installed
+   - Uninstalled
+   - Inspected(information about toolchain could be showed)
+   - Entered
+
+   We determining entered the toolchain or not based on environment variables.
+   In other words... every toolchain has some environment variables which when set
+   and active means that the specific toolchain will be used(=PATH= variable etc).
+
+*** Installing new version
+    For example you want to have a fresh version of =go= language on your machine. You could do:
+    #+BEGIN_SRC bash
+    ./v go install 1.8.3
+    #+END_SRC
+
+    #+RESULTS:
+    : Installed go version 1.8.3 into /home/user/.v/toolchain/go/1.8.3
+
+    This will install =go 1.8.3= into =/home/user/.v/toolchain/go/1.8.3=.
+
+    Next we need to apply the new go version envrionment to ours.
+
+    Lets see what environment variables will be altered:
+    #+BEGIN_SRC bash
+    ./v go env 1.8.3
+    #+END_SRC
+
+    #+RESULTS:
+    | export | GOROOT_BOOTSTRAP='/usr/lib/golang'                                                                                               |
+    | export | GOROOT='/home/user/.v/toolchain/go/1.8.3/build'                                                                                  |
+    | export | PATH='/home/user/.v/toolchain/go/1.8.3/bin:/home/user/Projects/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin' |
+
+    Go toolchain alters only 3 varialbes:
+    - GOROOT_BOOTSTRAP
+    - GOROOT
+    - PATH
+
+    Now =eval= them:
+    #+BEGIN_SRC bash
+    eval `./v go env 1.8.3`
+    go version
+    env | grep '^\(GOR\|PATH\)'
+    #+END_SRC
+
+    #+RESULTS:
+    | go                                                                                                                             | version | go1.8.3 | linux/amd64 |
+    | GOROOT_BOOTSTRAP=/usr/lib/golang                                                                                               |         |         |             |
+    | PATH=/home/user/.v/toolchain/go/1.8.3/bin:/home/user/Projects/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin |         |         |             |
+    | GOROOT=/home/user/.v/toolchain/go/1.8.3/build                                                                                  |         |         |             |
+
+    You could add toolchain environment evaluation into you =/etc/profile= or your dotfiles to make it permanent across sessions.
+** Requirements
+   All you need is =python3=.
+** Install
+   For quick and dirty installation you could use:
+   #+BEGIN_SRC bash
+   export PATH=$HOME/bin:$PATH
+   curl https://github.com/corpix/v/raw/master/v > ~/bin/v
+   chmod +x ~/bin/v
+   #+END_SRC
+
+   If you have implemented other installation methods please create an issue.
+** Available toolchains
+   At this moment only supported toolchains are:
+   - go
+
+** Available operations
+   You could perform some set of operation on every toolchain, here they are:
+   - show        :: Show toolchain version information and state
+   - install     :: Install toolchain of specific version
+   - uninstall   :: Uninstall toolchain of specific version
+   - environment :: Show environment which should be applied to use them
+   - local       :: Show locally installed toolchain versions
+   - remote      :: Show not installed toolchain versions
+
+   Almost all operations works only with =version= specified except this:
+   - local  :: Uses version to filter results by prefix
+   - remote :: Uses version to filter results by prefix
+
+** Environment and params
+   Environment variables:
+   - =V_PREFIX= :: Prefix directory where all toolchains will be installed
+
+   Whole environment is copied into =params= which could be altered with =--param= flag.
