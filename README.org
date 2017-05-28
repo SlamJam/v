@@ -65,7 +65,9 @@ This is a toolchain version manager which goals are:
 
     You could add toolchain environment evaluation into you =/etc/profile= or your dotfiles to make it permanent across sessions.
 ** Requirements
-   All you need is =python3=.
+   All you need are:
+   - python3
+   - git
 ** Install
    For quick and dirty installation you could use:
    #+BEGIN_SRC bash
