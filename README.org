@@ -1,5 +1,7 @@
 * v
 
+[[https://travis-ci.org/corpix/v.svg?branch=master]]
+
 This is a toolchain version manager which goals are:
 
 - to be mobile 1 script solution
