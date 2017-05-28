@@ -16,19 +16,41 @@ subprocess_streams = {
 
 
 class Logger(object):
+    DEBUG = 0
+    INFO  = 1
+    ERROR = 2
+    OFF   = 3
 
-    def __init__(self, formatter, debug=False):
-        self.formatter = formatter
-        self.debug = debug
+    level_strings = {
+        0: "debug",
+        1: "info",
+        2: "error",
+        3: "off"
+    }
 
-    def show(self, **kwargs):
-        if self.debug:
-            self.formatter.show(
+    def __init__(self, presenter, level=INFO):
+        self.presenter = presenter
+        self.level = level
+    def level_string(self, level):
+        return self.level_strings[level]
+    def message(self, level, message, **kwargs):
+        if self.level < self.OFF:
+            self.presenter.show(
                 "log",
-                kwargs
+                {
+                    "level": self.level_string(level),
+                    "message": message,
+                    "arguments": kwargs
+                }
             )
+    def debug(self, msg, **kwargs):
+        return self.message(self.DEBUG, msg, **kwargs)
+    def info(self, msg, **kwargs):
+        return self.message(self.INFO, msg, **kwargs)
+    def error(self, msg, **kwargs):
+        return self.message(self.ERROR, msg, **kwargs)
 
-class Formatter(object):
+class Presenter(object):
 
     class JSON(object):
 
@@ -86,6 +108,8 @@ class Formatter(object):
                     )
                     for version in result["versions"]:
                         stdout.write("  - {}\n".format(version))
+                    if len(result["versions"]) == 0 and result["query"]:
+                        exit(1)
                 elif name == "remote":
                     stdout.write(
                         "Remote versions(not installed) of {}:\n".format(
@@ -94,24 +118,37 @@ class Formatter(object):
                     )
                     for version in result["versions"]:
                         stdout.write("  - {}\n".format(version))
+                    if len(result["versions"]) == 0 and result["query"]:
+                        exit(1)
+            elif t == "log":
+                stderr.write(
+                    "{0} {1}\n".format(
+                        payload["message"],
+                        json_marshal_str(
+                            payload["arguments"],
+                            indent=4,
+                            sort_keys=True
+                        ) if len(payload["arguments"]) else ""
+                    )
+                )
 
-    formatters = {
+    presenters = {
         "json": JSON,
         "text": Text,
     }
 
-    def __init__(self, formatter):
-        name = formatter.lower().strip()
-        if name not in self.formatters:
+    def __init__(self, presenter):
+        name = presenter.lower().strip()
+        if name not in self.presenters:
             raise KeyError(
-                "Unsupported formatter '{}'".format(
+                "Unsupported presenter '{}'".format(
                     name
                 )
             )
-        self.formatter = self.formatters[name]()
+        self.presenter = self.presenters[name]()
 
     def show(self, type, payload):
-        return self.formatter.show({
+        return self.presenter.show({
             "type": type,
             "payload": payload
         })
@@ -190,9 +227,10 @@ class Toolchain(object):
 
     class Base(object):
 
-        def __init__(self, name, params):
-            self.name = name
+        def __init__(self, name, params, log):
+            self.name   = name
             self.params = params
+            self.log    = log
 
         def get_prefix(self):
             return pjoin(
@@ -227,11 +265,11 @@ class Toolchain(object):
 
     class Go(Base):
 
-        def __init__(self, name, params):
+        def __init__(self, *args, **kwargs):
             super(
                 Toolchain.Go,
                 self
-            ).__init__(name, params)
+            ).__init__(*args, **kwargs)
             self.repo_url = "https://github.com/golang/go"
             self.repo = Provider(
                 "git",
@@ -260,6 +298,7 @@ class Toolchain(object):
             build_dir = self.get_build_dir(version)
             rmtree(build_dir, ignore_errors=True)
             makedirs(build_dir, exist_ok=True)
+            self.log.info("Clonning repository from cache...")
             git(
                 [
                     "clone",
@@ -273,6 +312,7 @@ class Toolchain(object):
             env = environ.copy()
             env.update(self.environment(version))
 
+            self.log.info("Performing the build...")
             run_check(
                 pjoin(build_dir, "src/make.bash"),
                 [],
@@ -284,6 +324,7 @@ class Toolchain(object):
                 exist_ok=True
             )
 
+            self.log.info("Syncing binaries...")
             bin = pjoin(build_dir, "bin")
             for binary in listdir(bin):
                 target = pjoin(self.get_bin_dir(version), binary)
@@ -355,7 +396,7 @@ class Toolchain(object):
         "remote",
         "local",
     ]
-    def __init__(self, name, params):
+    def __init__(self, name, params, log):
         if name not in self.toolchains:
             raise KeyError(
                 "Unsupported toolchain '{}'".format(
@@ -363,7 +404,7 @@ class Toolchain(object):
                 )
             )
         self.name = name
-        self.toolchain = self.toolchains[name](name, params)
+        self.toolchain = self.toolchains[name](name, params, log)
     def assert_installed(self, version):
         if not self.toolchain.installed(version):
             raise RuntimeError(
@@ -398,6 +439,7 @@ class Toolchain(object):
     def remote(self, version_query):
         return {
             "toolchain": self.name,
+            "query": version_query,
             "versions": self.version_query(
                 [
                     v
@@ -410,6 +452,7 @@ class Toolchain(object):
     def local(self, version_query):
         return {
             "toolchain": self.name,
+            "query": version_query,
             "versions": self.version_query(
                 [
                     v
@@ -477,9 +520,12 @@ def has_prefix(v, prefix):
 
 def main(args):
     params    = Params(args["param"])
-    formatter = Formatter(args["formatter"])
-    log       = Logger(formatter, args["debug"])
-    toolchain = Toolchain(args["toolchain"], params)
+    presenter = Presenter(args["presenter"])
+    log       = Logger(
+        presenter,
+        Logger.DEBUG if args["debug"] else Logger.INFO
+    )
+    toolchain = Toolchain(args["toolchain"], params, log)
 
     if args["operation"] not in Toolchain.operations:
         raise KeyError(
@@ -489,12 +535,13 @@ def main(args):
             )
         )
 
-    log.show(
+    log.debug(
+        "Running",
         operation=args["operation"],
-        version=args["version"],
-        params=params.__dict__()
+        toolchain=args["toolchain"],
+        version=args["version"]
     )
-    formatter.show(
+    presenter.show(
         "operation",
         {
             "name": args["operation"],
@@ -534,9 +581,9 @@ if __name__ == "__main__":
         action="store_true"
     )
     p.add_argument(
-        "--formatter",
-        help="Output formatter, available are: {}".format(
-            [k for k, _ in Formatter.formatters.items()]
+        "--presenter",
+        help="Output presenter, available are: {}".format(
+            [k for k, _ in Presenter.presenters.items()]
         ),
         default="text"
     )
@@ -546,27 +593,27 @@ if __name__ == "__main__":
         nargs="+"
     )
 
-    def operation(operations, operation):
-        ops = [
+    def match(full, part):
+        vs = [
             v
-            for v in operations
-            if has_prefix(v, operation)
+            for v in full
+            if has_prefix(v, part)
         ]
-        if len(ops) == 0:
-            return operation
-        if len(ops) > 1:
+        if len(vs) == 0:
+            return part
+        if len(vs) > 1:
             raise RuntimeError(
-                "Ambiguous operation name '{}', did you mean one of these? {}".format(
-                    operation,
-                    ops
+                "Ambiguous name '{}', did you mean one of these? {}".format(
+                    part,
+                    vs
                 )
             )
-        return ops[0]
+        return vs[0]
 
     def normalize(args):
         nargs = args.copy()
-        nargs["toolchain"] = args["toolchain"].lower().strip()
-        nargs["operation"] = operation(Toolchain.operations, args["operation"])
+        nargs["toolchain"] = match(Toolchain.toolchains, args["toolchain"].lower().strip())
+        nargs["operation"] = match(Toolchain.operations, args["operation"].lower().strip())
         return nargs
 
     main(

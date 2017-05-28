@@ -101,3 +101,22 @@ This is a toolchain version manager which goals are:
    - =V_PREFIX= :: Prefix directory where all toolchains will be installed
 
    Whole environment is copied into =params= which could be altered with =--param= flag.
+** Version query
+   To query a version you could use:
+   #+BEGIN_SRC bash
+   ./v go local 1.8.1
+   #+END_SRC
+
+   It will exit with code =>0= if will find zero installed versions by specified prefix.
+
+   At the opposite corner we have a subcommand to query not installed(remote) versions:
+   #+BEGIN_SRC bash
+   ./v go remote 1.8.1
+   #+END_SRC
+
+   To install version =1.8.1= only it is not installed:
+   #+BEGIN_SRC bash
+   ./v go local 1.8.1 || ./v go install 1.8.1
+   # or
+   ./v go remote 1.8.1 && ./v go install 1.8.1
+   #+END_SRC
