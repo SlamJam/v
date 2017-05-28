@@ -16,9 +16,11 @@ subprocess_streams = {
 
 
 class Logger(object):
+
     def __init__(self, formatter, debug=False):
         self.formatter = formatter
         self.debug = debug
+
     def show(self, **kwargs):
         if self.debug:
             self.formatter.show(
@@ -27,7 +29,9 @@ class Logger(object):
             )
 
 class Formatter(object):
+
     class JSON(object):
+
         def show(self, data):
             json_marshal(
                 data,
@@ -36,7 +40,9 @@ class Formatter(object):
                 sort_keys=True
             )
             stdout.write("\n")
+
     class Text(object):
+
         def show(self, data):
             t = data["type"]
             payload = data["payload"]
@@ -88,10 +94,12 @@ class Formatter(object):
                     )
                     for version in result["versions"]:
                         stdout.write("  - {}\n".format(version))
+
     formatters = {
         "json": JSON,
         "text": Text,
     }
+
     def __init__(self, formatter):
         name = formatter.lower().strip()
         if name not in self.formatters:
@@ -101,6 +109,7 @@ class Formatter(object):
                 )
             )
         self.formatter = self.formatters[name]()
+
     def show(self, type, payload):
         return self.formatter.show({
             "type": type,
@@ -108,18 +117,23 @@ class Formatter(object):
         })
 
 class Params(object):
+
     default = {
         "V_PREFIX": expanduser("~/.v")
     }
+
     def __init__(self, raw_params, environ=environ):
         params = self.default.copy()
         params.update(environ)
         params.update(self.parse(raw_params))
         self.params = params
+
     def __dict__(self):
         return self.params
+
     def get_prefix(self):
         return self.params["V_PREFIX"]
+
     def parse(self, raw_params):
         res = {}
         if not raw_params:
@@ -130,9 +144,12 @@ class Params(object):
         return res
 
 class Provider(object):
+
     class Git(object):
+
         def __init__(self, toolchain):
             self.toolchain = toolchain
+
         def provide(self, v, update=True):
             root = pjoin(
                 self.toolchain.get_cache_dir(),
@@ -152,9 +169,11 @@ class Provider(object):
                 )
                 git(["clone", v, root])
             return root
+
     providers = {
         "git": Git,
     }
+
     def __init__(self, name, params):
         if name not in self.providers:
             raise KeyError(
@@ -163,35 +182,43 @@ class Provider(object):
                 )
             )
         self.provider = self.providers[name](params)
+
     def provide(self, v, update=True):
         return self.provider.provide(v, update=update)
 
 class Toolchain(object):
+
     class Base(object):
+
         def __init__(self, name, params):
             self.name = name
             self.params = params
+
         def get_prefix(self):
             return pjoin(
                 self.params.get_prefix(),
                 "toolchain",
                 self.name
             )
+
         def get_dir(self, version):
             return pjoin(
                 self.get_prefix(),
                 version
             )
+
         def get_build_dir(self, version):
             return pjoin(
                 self.get_dir(version),
                 "build"
             )
+
         def get_bin_dir(self, version):
             return pjoin(
                 self.get_dir(version),
                 "bin"
             )
+
         def get_cache_dir(self):
             return pjoin(
                 self.params.get_prefix(),
@@ -199,6 +226,7 @@ class Toolchain(object):
             )
 
     class Go(Base):
+
         def __init__(self, name, params):
             super(
                 Toolchain.Go,
@@ -209,6 +237,7 @@ class Toolchain(object):
                 "git",
                 self
             ).provide(self.repo_url)
+
         def show(self, version):
             tag = "go" + version
             return {
@@ -218,8 +247,10 @@ class Toolchain(object):
                 "installed": self.installed(version),
                 "environment": self.environment(version)
             }
+
         def installed(self, version):
             return exists(self.get_dir(version))
+
         def install(self, version):
             makedirs(
                 self.get_dir(version),
@@ -270,6 +301,7 @@ class Toolchain(object):
                 "version": version,
                 "dir": self.get_dir(version)
             }
+
         def uninstall(self, version):
             rmtree(self.get_dir(version))
             return {
@@ -277,6 +309,7 @@ class Toolchain(object):
                 "version": version,
                 "dir": self.get_dir(version)
             }
+
         def environment(self, version):
             bootstrap_root_default = "/usr/lib/golang"
             bootstrap_root = environ.get(
@@ -297,6 +330,7 @@ class Toolchain(object):
                     ]
                 )
             }
+
         def versions(self):
             repo_path = pjoin(
                 self.repo,
