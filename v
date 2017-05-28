@@ -101,23 +101,23 @@ class Presenter(object):
                             "export {}='{}'".format(k, v) + "\n"
                         )
                 elif name == "local":
-                    stdout.write(
+                    stderr.write(
                         "Locally installed versions of {}:\n".format(
                             result["toolchain"]
                         )
                     )
                     for version in result["versions"]:
-                        stdout.write("  - {}\n".format(version))
+                        stdout.write("    {}\n".format(version))
                     if len(result["versions"]) == 0 and result["query"]:
                         exit(1)
                 elif name == "remote":
-                    stdout.write(
+                    stderr.write(
                         "Remote versions(not installed) of {}:\n".format(
                             result["toolchain"]
                         )
                     )
                     for version in result["versions"]:
-                        stdout.write("  - {}\n".format(version))
+                        stdout.write("    {}\n".format(version))
                     if len(result["versions"]) == 0 and result["query"]:
                         exit(1)
             elif t == "log":

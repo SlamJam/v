@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+./v go u 1.8.3 || true
+./v go u 1.8.1 || true
+
+./v go i 1.8.3
+./v go i 1.8.1
+
+./v go i 1.8.1 && {
+    echo "Should fail because already exists"
+    exit 1
+} || true
+
+[ $(bash -x -e -c "eval $(./v go env 1.8.3); go version | awk '{print \$3}'") = go1.8.3 ]
+[ $(bash -x -e -c "eval $(./v go env 1.8.1); go version | awk '{print \$3}'") = go1.8.1 ]
+
+[ `./v go local | wc -l` = 2 ]
+./v go u 1.8.1
+[ `./v go local | wc -l` = 1 ]
+./v go u 1.8.3
+[ `./v go local | wc -l` = 0 ]
