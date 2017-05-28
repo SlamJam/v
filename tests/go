@@ -5,6 +5,15 @@
 ./v go i 1.8.3
 ./v go i 1.8.1
 
+./v go local 1.8.1 || {
+    echo "Should be true because this version installed"
+    exit 1
+}
+./v go remote 1.8.1 && {
+    echo "Should be false because this version installed"
+    exit 1
+} || true
+
 ./v go i 1.8.1 && {
     echo "Should fail because already exists"
     exit 1
