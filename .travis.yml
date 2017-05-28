@@ -1,3 +1,6 @@
 language: go
-dist: xenial
+addons:
+  apt:
+    packages:
+      - python3
 script: make test
